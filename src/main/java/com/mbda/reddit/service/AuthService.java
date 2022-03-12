@@ -1,6 +1,7 @@
 package com.mbda.reddit.service;
 
 import com.mbda.reddit.dto.RegisterRequest;
+import com.mbda.reddit.exceptions.SpringRedditException;
 import com.mbda.reddit.model.NotificationEmail;
 import com.mbda.reddit.model.User;
 import com.mbda.reddit.model.VerificationToken;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -56,4 +58,20 @@ public class AuthService {
     }
 
 
+    public void verifyAccount(String token) {
+        Optional<VerificationToken> verificationToken = verificationTokenRepository.findByToken(token);
+        verificationToken.orElseThrow(() -> new SpringRedditException("Invalid Token"));
+
+        fetchUserAndEnable(verificationToken.get());
+    }
+
+    @Transactional
+    private void fetchUserAndEnable(VerificationToken verificationToken) {
+        String username = verificationToken.getUser().getUsername();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new SpringRedditException("User not found with name: " + username));
+
+        user.setEnabled(true);
+        userRepository.save(user);
+    }
 }
